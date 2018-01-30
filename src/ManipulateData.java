@@ -41,9 +41,9 @@ public class ManipulateData
                     int columnNumber = 0;
                     for (String each : wordsArray){
                         if (columnNumber == 0) {
-                            newCoorRow.city = each;
+                            newCoorRow.city = each.toLowerCase();
                         } else if (columnNumber == 1){
-                            newCoorRow.city_ascii = each;
+                            newCoorRow.city_ascii = each.toLowerCase();
                         } else if (columnNumber == 2){
                             newCoorRow.state_id = each;
                         } else if (columnNumber == 3){
@@ -106,7 +106,7 @@ public class ManipulateData
                         } else if (columnNumber == 2) {
                             newRow.lastName = each;
                         } else if (columnNumber == 3) {
-                            newRow.city = each;
+                            newRow.city = each.toLowerCase();
                         } else if (columnNumber == 4) {
                             newRow.state = each;
                         } else if (columnNumber == 5) {
@@ -151,7 +151,6 @@ public class ManipulateData
                         data.get(newRow.state).put(newRow.city, new ArrayList<>());
                     }
                     data.get(newRow.state).get(newRow.city).add(newRow);
-                    System.out.println("Line " + lineProcessed + " processed.");
                 }
             }
             buf.close();
@@ -171,27 +170,33 @@ public class ManipulateData
         }
         return specialtyTable;
     }
-//    public Double[][] densityMatrix(Hashtable<String, Hashtable<String, ArrayList<DataRow>>> data, Hashtable<String, Hashtable<String, Coordinate>> geodata)
-//    {
-//        String firstName = "";
-//        String lastName = "";
-//        int matrixRow = 0;
-//        Double[][] geoArr = new Double[matrixRow][2];
-//        for (String state : data.keySet()){
-//            for (String city : data.get(state).keySet()){
-//                for (DataRow dataRow : data.get(state).get(city)){
-//                    if(!firstName.equals(data.get(state).get(city).dataRow.firstName) && !lastName.equals(data.get(state).get(city).dataRow.lastName)){
-//                        geoArr[matrixRow][0] = geodata.get(state).get(city).lat;
-//                        geoArr[MatrixRow][1] = geodata.get(state).get(city).lag;
-//                        matrixRow++;
-//                        firstName = data.get(state).get(city).dataRow.firstName;
-//                        lastName = data.get(state).get(city).dataRow.lastName;
-//                    }
-//                }
-//            }
-//        }
-//        return geoArr;
-//    }
+    public ArrayList getDensityMatrix(Hashtable<String, Hashtable<String, ArrayList<DataRow>>> data, Hashtable<String, Hashtable<String, Coordinate>> geodata)
+    {
+        String firstName = "";
+        String lastName = "";
+        //Double[][] geoArr = new Double[matrixRow][2];
+        ArrayList geoArr = new ArrayList();
+        for (String state : data.keySet()){
+            for (String city : data.get(state).keySet()){
+                for (DataRow dataRow : data.get(state).get(city)){
+                    if(!firstName.equals(dataRow.firstName) && !lastName.equals(dataRow.lastName)){
+                        Double[] thisRow = new Double[2];
+                        try {
+                            Coordinate thisCoordinate = geodata.get(state).get(city);
+                            thisRow[0] = thisCoordinate.lat;
+                            thisRow[1] = thisCoordinate.lng;
+                            geoArr.add(thisRow);
+                        } catch(Exception e) {
+                            System.err.println("City [" + city + "] is not found in Geo Data!");
+                        }
+                        firstName = dataRow.firstName;
+                        lastName = dataRow.lastName;
+                    }
+                }
+            }
+        }
+        return geoArr;
+    }
 //    public Double[][] specialtyMatrix(Hashtable<String, Hashtable<String, ArrayList<DataRow>>> data, Hashtable<String, Hashtable<String, Coordinate>> geodata)
 //    {
 //        String firstName = "";
@@ -216,9 +221,9 @@ public class ManipulateData
 //    }
     public static void main(String...args)
     {
-//
-//        ManipulateData manipulateData = new ManipulateData();
-//        Hashtable<String, Hashtable<String, ArrayList<DataRow>>> data = manipulateData.readData("./PartD_Prescriber_PUF_NPI_Drug_15.txt", 100000);
+
+        ManipulateData manipulateData = new ManipulateData();
+        Hashtable<String, Hashtable<String, ArrayList<DataRow>>> data = manipulateData.readData("data-src/drug_15_sample.txt", 20000);
 //        for (String state : data.keySet()){
 //            for (String city : data.get(state).keySet()){
 //                Hashtable<String, Integer> specialtyTable = manipulateData.densitySpecialty(data,state,city);
@@ -232,6 +237,11 @@ public class ManipulateData
 //                }
 //             }
 //        }
-//        Hashtable<String, Hashtable<String, Coordinate>> dataCoor = manipulateData.readCoorData("./uscitiesv1.3.csv");
+        Hashtable<String, Hashtable<String, Coordinate>> dataCoor = manipulateData.readCoorData("data-src/uscitiesv1.3.csv");
+        ArrayList<Double []> densityMatrix = manipulateData.getDensityMatrix(data, dataCoor);
+
+        for (Double[] row : densityMatrix) {
+            System.out.println(row[0] + " | " + row[1]);
+        }
     }
 }

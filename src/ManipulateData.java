@@ -2,7 +2,14 @@ import java.io.BufferedReader;
 import java.io.FileReader;
 import java.util.ArrayList;
 import java.util.Hashtable;
-import java.util.Scanner;
+import net.sf.javaml.clustering.Clusterer;
+import net.sf.javaml.clustering.KMeans;
+import net.sf.javaml.core.Dataset;
+import net.sf.javaml.core.DefaultDataset;
+import net.sf.javaml.core.DenseInstance;
+import net.sf.javaml.core.Instance;
+import net.sf.javaml.tools.InstanceTools;
+
 public class ManipulateData
 {
 
@@ -219,6 +226,27 @@ public class ManipulateData
 //        }
 //        return specialtyArr;
 //    }
+    public void kmean(ArrayList<Double []> matrix){
+        Dataset dataset = new DefaultDataset();
+        for (Double[] row : matrix) {
+            double[] doubleRow = {row[0], row[1]};
+            Instance thisInstance = new DenseInstance(doubleRow);
+            dataset.add(thisInstance);
+        }
+
+        Clusterer km = new KMeans();
+        Dataset[] clusters = km.cluster(dataset);
+        for (Dataset cluster : clusters) {
+            double sumX = 0, sumY = 0;
+            for (Instance point : cluster) {
+                sumX += point.get(0);
+                sumY += point.get(1);
+            }
+            double meanX = sumX / cluster.size(), meanY = sumY / cluster.size();
+            System.out.println(cluster.size() + " : " + meanX + "," + meanY);
+        }
+
+    }
     public static void main(String...args)
     {
 
@@ -240,8 +268,9 @@ public class ManipulateData
         Hashtable<String, Hashtable<String, Coordinate>> dataCoor = manipulateData.readCoorData("data-src/uscitiesv1.3.csv");
         ArrayList<Double []> densityMatrix = manipulateData.getDensityMatrix(data, dataCoor);
 
-        for (Double[] row : densityMatrix) {
-            System.out.println(row[0] + " | " + row[1]);
-        }
+//        for (Double[] row : densityMatrix) {
+//            System.out.println(row[0] + " | " + row[1]);
+//        }
+        manipulateData.kmean(densityMatrix);
     }
 }

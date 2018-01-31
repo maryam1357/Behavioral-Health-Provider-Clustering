@@ -1,6 +1,7 @@
 import java.io.BufferedReader;
 import java.io.FileReader;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.Hashtable;
 import net.sf.javaml.clustering.Clusterer;
 import net.sf.javaml.clustering.KMeans;
@@ -11,8 +12,6 @@ import net.sf.javaml.core.Instance;
 
 public class ManipulateData
 {
-
-
     private int convertStringToInt(String str) {
         try {
             return Integer.parseInt(str);
@@ -165,67 +164,33 @@ public class ManipulateData
         }
         return data;
     }
-    public Hashtable<String, Integer> densitySpecialty(Hashtable<String, Hashtable<String, ArrayList<DataRow>>> data, String state, String city)
-    {
-        Hashtable<String, Integer> specialtyTable = new Hashtable<>();
-        for (DataRow dataRow: data.get(state).get(city)) {
-            if (!specialtyTable.containsKey(dataRow.specialty)) {
-                specialtyTable.put(dataRow.specialty, 0);
-            }
-            specialtyTable.put(dataRow.specialty, specialtyTable.get(dataRow.specialty) + 1);
-        }
-        return specialtyTable;
-    }
     public ArrayList getDensityMatrix(Hashtable<String, Hashtable<String, ArrayList<DataRow>>> data, Hashtable<String, Hashtable<String, Coordinate>> geodata)
     {
-        String firstName = "";
-        String lastName = "";
+
         //Double[][] geoArr = new Double[matrixRow][2];
-        ArrayList geoArr = new ArrayList();
+        ArrayList<Double[]> geoArr = new ArrayList<>();
         for (String state : data.keySet()){
-            for (String city : data.get(state).keySet()){
-                for (DataRow dataRow : data.get(state).get(city)){
-                    if(!firstName.equals(dataRow.firstName) && !lastName.equals(dataRow.lastName)){
+            for (String city : data.get(state).keySet()) {
+                HashSet<String> names = new HashSet<>();
+                for (DataRow dataRow : data.get(state).get(city)) {
+                    if (!names.contains(dataRow.firstName + dataRow.lastName)) {
                         Double[] thisRow = new Double[2];
                         try {
                             Coordinate thisCoordinate = geodata.get(state).get(city);
                             thisRow[0] = thisCoordinate.lat;
                             thisRow[1] = thisCoordinate.lng;
                             geoArr.add(thisRow);
-                        } catch(Exception e) {
+                        } catch (Exception e) {
                             System.err.println("City [" + city + "] is not found in Geo Data!");
                         }
-                        firstName = dataRow.firstName;
-                        lastName = dataRow.lastName;
+                        names.add(dataRow.firstName + dataRow.lastName);
                     }
                 }
             }
         }
         return geoArr;
     }
-//    public Double[][] specialtyMatrix(Hashtable<String, Hashtable<String, ArrayList<DataRow>>> data, Hashtable<String, Hashtable<String, Coordinate>> geodata)
-//    {
-//        String firstName = "";
-//        String lastName = "";
-//        int matrixRow = 0;
-//        Double[][] specialtyArr = new Double[matrixRow][3];
-//        for (String state : data.keySet()){
-//            for (String city : data.get(state).keySet()){
-//                for (DataRow dataRow : data.get(state).get(city)){
-//                    if(!firstName.equals(data.get(state).get(city).dataRow.firstName) && !lastName.equals(data.get(state).get(city).dataRow.lastName)){
-//                        specialtyArr[matrixRow][0] = geodata.get(state).get(city).lat;
-//                        specialtyArr[matrixRow][1] = geodata.get(state).get(city).lag;
-//                        specialtyArr[matrixRow][2] = data.get(state).get(city).dataRow.specialty;
-//                        matrixRow++;
-//                        firstName = data.get(state).get(city).dataRow.firstName;
-//                        lastName = data.get(state).get(city).dataRow.lastName;
-//                    }
-//                }
-//            }
-//        }
-//        return specialtyArr;
-//    }
-    public void kmean(ArrayList<Double []> matrix){
+    public void kmeanDensity(ArrayList<Double []> matrix){
         Dataset dataset = new DefaultDataset();
         for (Double[] row : matrix) {
             double[] doubleRow = {row[0], row[1]};
@@ -242,34 +207,78 @@ public class ManipulateData
                 sumY += point.get(1);
             }
             double meanX = sumX / cluster.size(), meanY = sumY / cluster.size();
-            System.out.println(cluster.size() + " : " + meanX + "," + meanY);
+            System.out.println("cluster Size = " + cluster.size() + ", Mean lat = " + meanX + ", Mean lag = " + meanY);
         }
-
+    }
+    public Hashtable<String,ArrayList<Double[]>> getspecialtyHashtable(Hashtable<String, Hashtable<String, ArrayList<DataRow>>> data, Hashtable<String, Hashtable<String, Coordinate>> geoData){
+        Hashtable<String,ArrayList<Double[]>> specialtyHashtable = new Hashtable<>();
+        for (String state : data.keySet()){
+            for (String city : data.get(state).keySet()){
+                HashSet<String> names = new HashSet<>();
+                for (DataRow newRow : data.get(state).get(city)){
+                    if(!names.contains(newRow.firstName + newRow.lastName)){
+                        if (!specialtyHashtable.containsKey(newRow.specialty) && geoData.get(state).containsKey(city)) {
+                            specialtyHashtable.put(newRow.specialty, new ArrayList<>());
+                        }
+                        Double[] thisRow = new Double[2];
+                        try {
+                            Coordinate thisCoordinate = geoData.get(state).get(city);
+                            thisRow[0] = thisCoordinate.lat;
+                            thisRow[1] = thisCoordinate.lng;
+                            specialtyHashtable.get(newRow.specialty).add(thisRow);
+                        } catch(Exception e) {
+                            System.err.println("City [" + city + "] is not found in Geo Data!");
+                        }
+                        names.add(newRow.firstName + newRow.lastName);
+                    }
+                }
+            }
+        }
+        return specialtyHashtable;
+    }
+    public void kmeanSpecialty(Hashtable<String, ArrayList<Double []>> specialtyHashtable){
+        for (String specialty : specialtyHashtable.keySet()){
+            System.out.println("Specialty: "+ specialty);
+            ArrayList<Double []> matrix = specialtyHashtable.get(specialty);
+            Dataset dataset = new DefaultDataset();
+            if (matrix.size() < 4) {
+                System.out.println("Cluster Size = " + matrix.size() );
+                for (Double[] i : matrix) {
+                    System.out.println("lat =  " + i[0] + ", " + "Lag =  " + i[1]);
+                }
+                continue;
+            }
+            for (Double[] row : matrix) {
+                double[] doubleRow = {row[0], row[1]};
+                Instance thisInstance = new DenseInstance(doubleRow);
+                dataset.add(thisInstance);
+            }
+            Clusterer km = new KMeans();
+            Dataset[] clusters = km.cluster(dataset);
+            for (Dataset cluster : clusters) {
+                double sumX = 0, sumY = 0;
+                for (Instance point : cluster) {
+                    sumX += point.get(0);
+                    sumY += point.get(1);
+                }
+                double meanX = sumX / cluster.size(), meanY = sumY / cluster.size();
+                System.out.println("Cluster Size = " + cluster.size() + ", "+ " Mean lat =  " + meanX + ", "+ "Mean Lag =  " + meanY);
+            }
+        }
     }
     public static void main(String...args)
     {
-
         ManipulateData manipulateData = new ManipulateData();
         Hashtable<String, Hashtable<String, ArrayList<DataRow>>> data = manipulateData.readData("data-src/drug_15_sample.txt", 20000);
-//        for (String state : data.keySet()){
-//            for (String city : data.get(state).keySet()){
-//                Hashtable<String, Integer> specialtyTable = manipulateData.densitySpecialty(data,state,city);
-//                for (String key : specialtyTable.keySet()) {
-//                    System.out.print(state);
-//                    System.out.print(" , ");
-//                    System.out.print(city);
-//                    System.out.print(" , ");
-//                    System.out.print("Specialty = " + key + ": " + specialtyTable.get(key));
-//                    System.out.println("");
-//                }
-//             }
-//        }
         Hashtable<String, Hashtable<String, Coordinate>> dataCoor = manipulateData.readCoorData("data-src/uscitiesv1.3.csv");
         ArrayList<Double []> densityMatrix = manipulateData.getDensityMatrix(data, dataCoor);
-
-//        for (Double[] row : densityMatrix) {
-//            System.out.println(row[0] + " | " + row[1]);
-//        }
-        manipulateData.kmean(densityMatrix);
+        System.out.println("**********************************************************************************************");
+        System.out.println("Providers Density Clustering");
+        manipulateData.kmeanDensity(densityMatrix);
+        System.out.println("**********************************************************************************************");
+        Hashtable<String,ArrayList<Double[]>> specialtyHash= manipulateData.getspecialtyHashtable(data, dataCoor);
+        System.out.println("Providers Specialty Clustering");
+        manipulateData.kmeanSpecialty(specialtyHash);
+        System.out.println("Done!!!!!");
     }
 }
